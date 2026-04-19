@@ -1,0 +1,216 @@
+# Every knob below has a WHY comment — "why this value, not another."
+# Production defaults are chosen for the Spark Connect + Iceberg +
+# Delta + S3A workload datalakeorm drives. Override via
+# `-f examples/<env>.values.yaml` for aws / gcp / local overlays.
+
+sparkConnect:
+  image:
+    # Canonical image — owns the Spark + Iceberg + Delta + Hadoop-AWS
+    # JAR version matrix so adopters never solve it themselves.
+    repository: ghcr.io/caldempsey/dorm-spark-connect
+    tag: "4.0.0"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    # 15002 is the upstream Spark Connect default. Changing this
+    # forces every client to override — not worth the churn.
+    port: 15002
+
+  resources:
+    requests:
+      # 1 CPU / 2 GiB handles local dev and moderate CI smoke tests.
+      # Executors run inside the same JVM for local[*] mode; real
+      # production deployments add external executors via
+      # spark.executor.* overrides (not this chart).
+      cpu: "1"
+      memory: "2Gi"
+    limits:
+      # 4 CPU / 8 GiB caps the local[*] executor pool and leaves
+      # headroom for Arrow buffers (~1 GiB at max gRPC inbound).
+      cpu: "4"
+      memory: "8Gi"
+
+  # Spark confs passed as --conf at server startup. Keys grouped by
+  # concern. Every value has a WHY — if you need to change one, update
+  # the comment with the new reason so future operators know.
+  conf:
+
+    # --- Spark Connect gRPC transport --------------------------------
+    spark.connect.grpc.binding.port: "15002"
+    # 1 GiB caps the largest single Arrow batch over the wire. Default
+    # is 128 MiB; bumping to 1 GiB covers the bulk-read case where a
+    # single StreamRows response batch can legitimately exceed 128 MiB
+    # (e.g. wide rows with large string columns). The cost is memory
+    # pressure on the driver JVM if a client misbehaves — mitigated by
+    # the Go client's own flow control.
+    spark.connect.grpc.maxInboundMessageSize: "1073741824"
+    spark.connect.grpc.maxOutboundMessageSize: "1073741824"
+    # 8 MiB per Arrow batch matches the Go client's buffered-reader
+    # default. Smaller = more gRPC chunks (overhead); larger = bigger
+    # working set per request.
+    spark.connect.grpc.arrow.maxBatchSize: "8m"
+
+    # Reattachable execution — the client can drop and resume a
+    # streaming query. Critical for long-running Stream() queries from
+    # a Go service behind a load balancer that might drop idle conns.
+    spark.connect.execute.reattachable: "true"
+    # 120m sender timeout covers the long-running bulk-read case where
+    # a single Stream() call over a 1B-row table legitimately takes
+    # hours. Default is 2m which is far too aggressive for lakehouse
+    # workloads. Matches svc-orca's production tuning.
+    spark.connect.execute.reattachable.senderMaxStreamDuration: "120m"
+    # 180m session timeout: Spark Connect reaps sessions that haven't
+    # had a request in this long. Our session pool borrows can be
+    # idle across long pause periods between query runs.
+    spark.connect.session.manager.defaultSessionTimeout: "180m"
+
+    # --- Arrow / Serialization ---------------------------------------
+    # 50000 records per Arrow batch: small enough that a client
+    # processing one batch-at-a-time via StreamRows keeps constant
+    # memory; large enough that per-batch overhead doesn't dominate.
+    # Spark's default is 10000 which is too small for bulk reads.
+    spark.sql.execution.arrow.maxRecordsPerBatch: "50000"
+    spark.sql.execution.arrow.pyspark.enabled: "true"
+    # selfDestruct=true makes Arrow release buffers immediately after
+    # the client reads them, rather than hanging onto them for the
+    # whole query. Essential for constant-memory streaming reads on
+    # billion-row tables.
+    spark.sql.execution.arrow.pyspark.selfDestruct.enabled: "true"
+    # Kryo is 2-3x faster than the Java default for shuffle and Arrow
+    # serialization paths. Standard Spark recommendation.
+    spark.serializer: "org.apache.spark.serializer.KryoSerializer"
+
+    # --- Scheduler ---------------------------------------------------
+    # FAIR allocates resources across concurrent queries fairly;
+    # default FIFO starves later queries when earlier ones are long.
+    # Matches svc-orca. Configured as scheduler.allocation.file
+    # separately if per-pool weights are needed.
+    spark.scheduler.mode: "FAIR"
+    spark.sql.files.ignoreMissingFiles: "true"
+
+    # --- Parallelism (batch-ETL oriented) ----------------------------
+    # 200 is Spark's default shuffle.partitions. Left unchanged here
+    # because structured-streaming queries persist this in their
+    # checkpoint — changing it invalidates checkpoints. Batch-ETL code
+    # that wants 3-4x-cores should SET spark.sql.shuffle.partitions
+    # per-query via WithSessionConfs.
+
+    # --- Hadoop S3A (real S3 + MinIO/SeaweedFS) ---------------------
+    # Magic committer writes files directly to their final location
+    # using S3 multipart-upload magic, avoiding the rename-based
+    # fileoutputcommitter. Dramatically faster Iceberg/Delta writes on
+    # S3 (no rename = no O(N) list+copy per commit). Required for
+    # any production Iceberg/Delta workload on S3.
+    spark.hadoop.fs.s3a.committer.name: "magic"
+    spark.hadoop.fs.s3a.committer.magic.enabled: "true"
+    # Algorithm v2 parallelizes task commit across executors. Needed
+    # for the non-magic committer fallback; harmless with magic.
+    spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version: "2"
+    # Ignore cleanup failures — transient S3 eventual-consistency
+    # glitches shouldn't fail a committed write.
+    spark.hadoop.mapreduce.fileoutputcommitter.cleanup-failures.ignored: "true"
+    # Fast-upload streams bytes as they arrive rather than buffering
+    # the whole part to disk first. Critical for multi-GB parquet
+    # writes that we do during fast-path ingest.
+    spark.hadoop.fs.s3a.fast.upload: "true"
+    # bytebuffer = off-heap direct buffer, much faster than the
+    # default "disk" for large multipart uploads. Trade-off: uses
+    # executor off-heap memory. Sized via maxConcurrentThreads * size.
+    spark.hadoop.fs.s3a.fast.upload.buffer: "bytebuffer"
+    # 100 MiB multipart size matches Iceberg's default data file
+    # target. Below this the small-file penalty dominates; above this
+    # S3 starts splitting uploads anyway.
+    spark.hadoop.fs.s3a.multipart.size: "104857600"
+    # 200 max connections supports highly-parallel Iceberg manifest
+    # reads on query planning. Default 48 is too low.
+    spark.hadoop.fs.s3a.connection.maximum: "200"
+    # 64 upload threads = 16 per CPU core (typical) × 4 cores worth
+    # of concurrent parts. Saturates a 1 Gbps link.
+    spark.hadoop.fs.s3a.threads.max: "64"
+    # 128 MiB block size aligns reads with parquet row-group layout.
+    spark.hadoop.fs.s3a.block.size: "134217728"
+
+    # --- Iceberg -----------------------------------------------------
+    # Iceberg extensions enable CALL system.* procedures (add_files,
+    # rewrite_data_files, expire_snapshots) and MERGE INTO with
+    # positional deletes. Without this, MERGE falls back to
+    # copy-on-write which is far slower.
+    spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    # Hadoop catalog — the filesystem IS the catalog. Iceberg metadata
+    # lives as `metadata/` JSON files alongside the data. No separate
+    # catalog service required. Production overlays that need
+    # multi-tenancy / git-like branching / cross-engine access swap to
+    # a REST catalog (Polaris, Tabular) or Glue / Unity.
+    spark.sql.catalog.dorm: "org.apache.iceberg.spark.SparkCatalog"
+    spark.sql.catalog.dorm.type: "hadoop"
+
+    # --- Delta (useful even on Iceberg-primary deployments) ---------
+    # Schema auto-merge — avoids UNKNOWN_FIELD_EXCEPTION at write time
+    # when the Go struct has drifted from the table. Keeps
+    # schema-evolution ergonomic. Matches svc-orca production.
+    spark.databricks.delta.schema.autoMerge.enabled: "true"
+    # Compact small files as part of the write path. Critical for
+    # long-running tables with many MERGE operations — without this,
+    # reads degrade over time. Matches svc-orca production.
+    spark.databricks.delta.optimizeWrite.enabled: "true"
+    # 8-way parallelism on commit-info writes. Default 1 bottlenecks
+    # under concurrent writes from multiple Go processes.
+    spark.databricks.delta.commitInfo.parallelism: "8"
+
+catalog:
+  # type: hadoop | rest | polaris | glue | unity
+  # Hadoop catalog is the default: no separate service, metadata lives
+  # alongside the data as `metadata/` JSON files. Swap to a REST
+  # catalog on production overlays that need multi-tenancy or git-like
+  # branching (Polaris, Tabular). Glue / Unity for managed options.
+  type: hadoop
+  # For REST catalogs, the chart template renders
+  # spark.sql.catalog.dorm.catalog-impl + .uri from these values.
+  uri: ""
+
+storage:
+  # type: seaweedfs | s3 | gcs
+  # SeaweedFS default for local/dev because it's one pod with zero
+  # external deps. Production overlays set type: s3 or gcs.
+  type: seaweedfs
+
+  seaweedfs:
+    enabled: true
+    # 3.71 is tested against the S3A committer paths above. Older
+    # versions have known bugs with multipart.
+    image: chrislusf/seaweedfs:3.71
+    persistence:
+      enabled: true
+      # 10 Gi covers several days of local testing. Bump up for
+      # sustained fast-path ingestion development.
+      size: 10Gi
+    creds:
+      # Dev-only credentials. Production overlays use IRSA / Workload
+      # Identity — see examples/aws.values.yaml. These show up in
+      # logs so we don't want real keys here anyway.
+      accessKey: dorm
+      secretKey: dorm
+    bucket: dorm-local
+
+  s3:
+    endpoint: ""
+    region: us-east-1
+    bucket: ""
+    # pathStyle: false = virtual-hosted URLs (real AWS).
+    # Production overlays leave this false; MinIO/SeaweedFS overlays
+    # flip it true because those backends only support path-style.
+    pathStyle: false
+
+serviceAccount:
+  # Kept empty on local; production annotates for IRSA (AWS) or
+  # Workload Identity (GCP) so spark-connect can reach the real
+  # object store without embedded credentials.
+  create: false
+  annotations: {}
+
+ingress:
+  enabled: false
+
+global:
+  imagePullSecrets: []

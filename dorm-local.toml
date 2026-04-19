@@ -1,0 +1,31 @@
+# dorm-local.toml — authoritative reference for what dorm.Local() hardcodes.
+#
+# dorm.Local() is a convenience wrapper around dorm.Open(...) with
+# these values baked in. Loadable via dorm.OpenFromConfig when you want
+# to tweak local development via config instead of code.
+
+[project]
+name     = "dorm-local"
+catalog  = "dorm"
+database = "default"
+
+[driver]
+type = "spark.remote"
+uri  = "sc://localhost:15002"
+
+[format]
+type         = "iceberg"
+# Hadoop catalog — no separate catalog service. Metadata lives as
+# `metadata/` JSON files alongside the data under the warehouse prefix.
+catalog_type = "hadoop"
+catalog_name = "dorm"
+
+[backend]
+type = "s3"
+uri  = "s3://dorm-local/lake?endpoint=http://localhost:8333&path_style=true&access_key=dorm&secret_key=dorm"
+
+[defaults]
+compression               = "zstd"
+fast_path_threshold_bytes = 134217728    # 128 MiB
+max_inflight_ingests      = 4
+session_pool_size         = 8

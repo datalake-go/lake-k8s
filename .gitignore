@@ -1,0 +1,11 @@
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# skaffold build artifacts
+.skaffold/
+
+# helm temp
+*.tgz

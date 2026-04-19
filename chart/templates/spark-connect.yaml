@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dorm.fullname" . }}-spark-connect
+  labels:
+    {{- include "dorm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: spark-connect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "dorm.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: spark-connect
+  template:
+    metadata:
+      labels:
+        {{- include "dorm.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: spark-connect
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "dorm.serviceAccountName" . }}
+      {{- end }}
+      containers:
+        - name: spark-connect
+          image: "{{ .Values.sparkConnect.image.repository }}:{{ .Values.sparkConnect.image.tag }}"
+          imagePullPolicy: {{ .Values.sparkConnect.image.pullPolicy }}
+          ports:
+            - containerPort: 15002
+              name: grpc
+          resources:
+            {{- toYaml .Values.sparkConnect.resources | nindent 12 }}
+          env:
+            - name: SPARK_CONNECT_CONF
+              value: |-
+                {{- range $k, $v := .Values.sparkConnect.conf }}
+                --conf {{ $k }}={{ $v }}
+                {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "dorm.fullname" . }}-spark-connect
+  labels:
+    {{- include "dorm.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.sparkConnect.service.type }}
+  ports:
+    - name: grpc
+      port: {{ .Values.sparkConnect.service.port }}
+      targetPort: 15002
+  selector:
+    {{- include "dorm.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: spark-connect
