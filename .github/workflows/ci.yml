@@ -1,0 +1,43 @@
+# Lint the chart, the compose file, and the Spark Connect Dockerfile
+# on every PR and every push to main. No runtime steps — spinning up
+# Spark in CI belongs on caldempsey/spark-connect-go where the Spark
+# tarball download is already handled.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  lint:
+    name: lint chart + compose + dockerfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: helm lint
+        run: helm lint chart/
+
+      - name: helm template (local values overlay)
+        # Rendering against the local overlay catches value-key typos
+        # and missing templates that plain `helm lint` doesn't.
+        run: helm template dorm chart/ -f examples/local.values.yaml
+
+      - name: docker compose config
+        # `config -q` validates YAML syntax + referenced files without
+        # pulling images or starting anything.
+        run: docker compose config -q
+
+      - name: hadolint Spark Connect Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: images/spark-connect/Dockerfile

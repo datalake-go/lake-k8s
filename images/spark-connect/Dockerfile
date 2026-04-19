@@ -28,8 +28,9 @@ ARG AWS_SDK_VERSION=1.12.781
 
 USER root
 
-RUN mkdir -p /opt/spark/jars-dorm && cd /opt/spark/jars-dorm && \
-    curl -fsSL -o iceberg-spark-runtime-4.0_2.13-${ICEBERG_VERSION}.jar \
+WORKDIR /opt/spark/jars-dorm
+
+RUN curl -fsSL -o iceberg-spark-runtime-4.0_2.13-${ICEBERG_VERSION}.jar \
       https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-4.0_2.13/${ICEBERG_VERSION}/iceberg-spark-runtime-4.0_2.13-${ICEBERG_VERSION}.jar && \
     curl -fsSL -o delta-spark_2.13-${DELTA_VERSION}.jar \
       https://repo1.maven.org/maven2/io/delta/delta-spark_2.13/${DELTA_VERSION}/delta-spark_2.13-${DELTA_VERSION}.jar && \
@@ -37,7 +38,7 @@ RUN mkdir -p /opt/spark/jars-dorm && cd /opt/spark/jars-dorm && \
       https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_AWS_VERSION}/hadoop-aws-${HADOOP_AWS_VERSION}.jar && \
     curl -fsSL -o aws-java-sdk-bundle-${AWS_SDK_VERSION}.jar \
       https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_VERSION}/aws-java-sdk-bundle-${AWS_SDK_VERSION}.jar && \
-    cp *.jar /opt/spark/jars/
+    cp ./*.jar /opt/spark/jars/
 
 USER spark
 
