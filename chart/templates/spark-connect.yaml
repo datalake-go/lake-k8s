@@ -27,6 +27,8 @@ spec:
           ports:
             - containerPort: 15002
               name: grpc
+            - containerPort: {{ .Values.sparkConnect.service.uiPort | default 4040 }}
+              name: http-ui
           resources:
             {{- toYaml .Values.sparkConnect.resources | nindent 12 }}
           env:
@@ -48,6 +50,9 @@ spec:
     - name: grpc
       port: {{ .Values.sparkConnect.service.port }}
       targetPort: 15002
+    - name: http-ui
+      port: {{ .Values.sparkConnect.service.uiPort | default 4040 }}
+      targetPort: http-ui
   selector:
     {{- include "dorm.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: spark-connect
