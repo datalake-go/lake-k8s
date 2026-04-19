@@ -1,0 +1,30 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: dorm
+build:
+  artifacts:
+    - image: ghcr.io/caldempsey/dorm-spark-connect
+      context: images/spark-connect
+      docker:
+        dockerfile: Dockerfile
+deploy:
+  helm:
+    releases:
+      - name: dorm
+        chartPath: chart
+        valuesFiles:
+          - examples/local.values.yaml
+portForward:
+  - resourceType: service
+    resourceName: dorm-spark-connect
+    port: 15002
+    localPort: 15002
+  - resourceType: service
+    resourceName: dorm-nessie
+    port: 19120
+    localPort: 19120
+  - resourceType: service
+    resourceName: dorm-seaweedfs
+    port: 8333
+    localPort: 8333

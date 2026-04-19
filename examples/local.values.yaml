@@ -1,0 +1,24 @@
+# Local development overlay. Assumes the chart's SeaweedFS + Nessie
+# defaults and exposes Spark Connect on a NodePort so skaffold's
+# port-forward works against kind / minikube.
+
+sparkConnect:
+  service:
+    type: NodePort
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+storage:
+  seaweedfs:
+    enabled: true
+    persistence:
+      size: 2Gi
+
+catalog:
+  nessie:
+    enabled: true

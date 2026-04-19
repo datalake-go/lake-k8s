@@ -1,0 +1,50 @@
+# Laptop-mode stack. Mirrors what the Helm chart deploys to k8s but as
+# a single docker-compose for developers who don't want to run a local
+# k8s cluster. Same port layout; dorm.Local() assumes these defaults.
+#
+# Brings up:
+#   - SeaweedFS on :8333      (S3 API; creds dorm/dorm; bucket dorm-local)
+#   - Spark Connect on :15002 (Spark 3.5 + Iceberg + Delta + Hadoop-AWS)
+#
+# Iceberg uses the Hadoop catalog rooted at the SeaweedFS warehouse —
+# metadata lives as `metadata/` JSON files alongside the data. No
+# separate catalog service. Production overlays that need REST /
+# Glue / Unity swap the relevant spark.sql.catalog.* confs.
+#
+# Usage:
+#   docker compose up -d
+#   # then from Go: dorm.Open(spark.Remote("sc://localhost:15002"), ...)
+#   docker compose down -v
+
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.71
+    command: server -s3 -s3.config=/etc/seaweedfs/config.json -ip.bind=0.0.0.0
+    ports:
+      - "8333:8333"
+      - "9333:9333"
+    volumes:
+      - ./config/seaweed.json:/etc/seaweedfs/config.json:ro
+      - seaweed-data:/data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8333"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  spark-connect:
+    # Placeholder for the canonical image. When images/spark-connect
+    # is built and pushed, pin here explicitly.
+    image: ${DORM_SPARK_IMAGE:-ghcr.io/caldempsey/dorm-spark-connect:4.0.0}
+    ports:
+      - "15002:15002"
+    # Spark Connect tunings are the same as the chart's
+    # sparkConnect.conf map — grep `--conf` in the chart for the
+    # production-validated set of gRPC / Arrow / Iceberg / Delta /
+    # S3A knobs with per-knob WHY comments.
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+
+volumes:
+  seaweed-data:
