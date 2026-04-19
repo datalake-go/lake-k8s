@@ -35,7 +35,7 @@ services:
   spark-connect:
     # Placeholder for the canonical image. When images/spark-connect
     # is built and pushed, pin here explicitly.
-    image: ${DORM_SPARK_IMAGE:-ghcr.io/caldempsey/dorm-spark-connect:4.0.0}
+    image: ${DORM_SPARK_IMAGE:-ghcr.io/datalakego/spark-connect:4.0.0}
     ports:
       - "15002:15002"
     # Spark Connect tunings are the same as the chart's

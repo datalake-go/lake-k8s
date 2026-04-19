@@ -1,6 +1,6 @@
-# dorm-k8s
+# k8s
 
-> Deployment artifacts for [datalakeorm](https://github.com/caldempsey/datalakeorm) — local via Skaffold, production via Helm.
+> Deployment artifacts for [datalakego](https://github.com/datalakego/dorm) — local via Skaffold, production via Helm.
 
 This repo is the sanctioned way to stand up the two things a Go
 `dorm.Open(...)` call expects to reach:
@@ -15,14 +15,14 @@ This repo is the sanctioned way to stand up the two things a Go
 2. **An object store** (SeaweedFS by default for local; S3 / GCS /
    Azure via values.yaml on production overlays).
 
-See [`datalakeorm/TECH_SPEC.md`](https://github.com/caldempsey/datalakeorm/blob/main/TECH_SPEC.md)
+See [`datalakego/TECH_SPEC.md`](https://github.com/datalakego/dorm/blob/main/TECH_SPEC.md)
 "dorm-local to production: one line of code" for why the split
 exists and how the local-to-prod arc is meant to feel.
 
 ## Contents
 
 ```
-dorm-k8s/
+k8s/
 ├── skaffold.yaml             # Day-1 developer entry point — `skaffold dev`
 ├── docker-compose.yaml       # Laptop-mode equivalent for non-k8s dev
 ├── chart/                    # Helm chart — the production surface
@@ -84,7 +84,7 @@ for the annotated config.
 
 ## The canonical image
 
-`images/spark-connect/Dockerfile` builds `ghcr.io/caldempsey/dorm-spark-connect:<spark-version>`
+`images/spark-connect/Dockerfile` builds `ghcr.io/datalakego/spark-connect:<spark-version>`
 with:
 
 - Apache Spark 3.5.x
