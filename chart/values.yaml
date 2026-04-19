@@ -18,7 +18,8 @@ sparkConnect:
     port: 15002
     # 4040 is the driver UI port, and also where
     # spark.ui.prometheus.enabled=true mounts /metrics/prometheus.
-    # Exposed on the Service so ServiceMonitor can scrape.
+    # Exposed on the Service so operators who run their own
+    # Prometheus can point a scrape at it.
     uiPort: 4040
 
   resources:
@@ -152,8 +153,9 @@ sparkConnect:
     # --- Metrics ----------------------------------------------------
     # Spark 3.0+ ships the PrometheusServlet sink as part of the
     # core metrics system. Flip these three confs and the driver
-    # exposes /metrics/prometheus on the UI port, which the
-    # ServiceMonitor below points Prometheus at.
+    # exposes /metrics/prometheus on the UI port for operators who
+    # want to scrape it. The chart does not render a ServiceMonitor
+    # or a Grafana dashboard — operators bring their own.
     spark.ui.prometheus.enabled: "true"
     spark.sql.streaming.metricsEnabled: "true"
     spark.metrics.conf.*.sink.prometheusServlet.class: "org.apache.spark.metrics.sink.PrometheusServlet"
@@ -215,25 +217,6 @@ storage:
     # Production overlays leave this false; MinIO/SeaweedFS overlays
     # flip it true because those backends only support path-style.
     pathStyle: false
-
-metrics:
-  # Render a monitoring.coreos.com/v1 ServiceMonitor that a
-  # kube-prometheus-stack (or any operator that honours the CRD)
-  # picks up and scrapes. Safe to leave on even without the CRD
-  # installed — the template skips rendering in that case.
-  serviceMonitor:
-    enabled: true
-    interval: 15s
-    # extra labels Prometheus Operator uses to select which
-    # ServiceMonitors it scrapes. Most operators default to
-    # release: prometheus; override to match your cluster's setup.
-    labels: {}
-
-  # Render a ConfigMap tagged grafana_dashboard=1 so the Grafana
-  # sidecar auto-loads the Spark Connect dashboard. Requires the
-  # sidecar discovery feature (default on kube-prometheus-stack).
-  dashboard:
-    enabled: true
 
 serviceAccount:
   # Kept empty on local; production annotates for IRSA (AWS) or
