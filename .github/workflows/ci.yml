@@ -1,6 +1,6 @@
 # Lint the chart, the compose file, and the Spark Connect Dockerfile
 # on every PR and every push to main. No runtime steps — spinning up
-# Spark in CI belongs on caldempsey/spark-connect-go where the Spark
+# Spark in CI belongs on datalakego/spark-connect-go where the Spark
 # tarball download is already handled.
 name: ci
 

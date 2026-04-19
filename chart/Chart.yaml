@@ -1,14 +1,14 @@
 apiVersion: v2
 name: dorm
 description: >
-  Deploy Spark Connect + Iceberg catalog + object storage for datalakeorm.
+  Deploy Spark Connect + Iceberg catalog + object storage for datalakego.
   Defaults fully self-contained (SeaweedFS + Nessie); override via values
   to point at real S3/GCS plus Polaris/Unity/Glue catalogs in production.
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
 keywords:
-  - datalakeorm
+  - datalakego
   - dorm
   - spark
   - iceberg
@@ -16,4 +16,4 @@ keywords:
   - lakehouse
 maintainers:
   - name: caldempsey
-    url: https://github.com/caldempsey
+    url: https://github.com/datalakego

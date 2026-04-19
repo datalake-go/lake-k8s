@@ -1,13 +1,13 @@
 # Every knob below has a WHY comment — "why this value, not another."
 # Production defaults are chosen for the Spark Connect + Iceberg +
-# Delta + S3A workload datalakeorm drives. Override via
+# Delta + S3A workload datalakego drives. Override via
 # `-f examples/<env>.values.yaml` for aws / gcp / local overlays.
 
 sparkConnect:
   image:
     # Canonical image — owns the Spark + Iceberg + Delta + Hadoop-AWS
     # JAR version matrix so adopters never solve it themselves.
-    repository: ghcr.io/caldempsey/dorm-spark-connect
+    repository: ghcr.io/datalakego/spark-connect
     tag: "4.0.0"
     pullPolicy: IfNotPresent
 

@@ -4,7 +4,7 @@ metadata:
   name: dorm
 build:
   artifacts:
-    - image: ghcr.io/caldempsey/dorm-spark-connect
+    - image: ghcr.io/datalakego/spark-connect
       context: images/spark-connect
       docker:
         dockerfile: Dockerfile
