@@ -1,101 +1,50 @@
-# k8s
+# lake-k8s
 
-> Deployment artifacts for [datalakego](https://github.com/datalakego/dorm) — local via Skaffold, production via Helm.
+> Deployment artifacts for the datalake-go lakehouse: pre-baked Spark Connect image, Helm chart, Skaffold dev loop, docker-compose for laptop mode.
 
-This repo is the sanctioned way to stand up the two things a Go
-`dorm.Open(...)` call expects to reach:
+---
 
-1. **Spark Connect server** with Iceberg + Delta + Hadoop-AWS + AWS SDK
-   JARs pre-built into a single image — owning the Spark/JAR version
-   matrix centrally so every user doesn't solve it themselves. The
-   Iceberg catalog is the Hadoop catalog by default (filesystem IS the
-   catalog, metadata lives as `metadata/` JSON files alongside the
-   data). Production overlays that need REST / Glue / Unity swap the
-   relevant `spark.sql.catalog.*` confs.
-2. **An object store** (SeaweedFS by default for local; S3 / GCS /
-   Azure via values.yaml on production overlays).
+## Intuition
 
-See [`datalakego/TECH_SPEC.md`](https://github.com/datalakego/dorm/blob/main/TECH_SPEC.md)
-"dorm-local to production: one line of code" for why the split
-exists and how the local-to-prod arc is meant to feel.
+Every datalake-go project needs a Spark Connect cluster to talk to. Stock `apache/spark` images spend 60–90 seconds resolving Iceberg and Delta JARs from Maven on first boot, which makes inner-loop dev painful and CI flaky. Production deployments need Helm. Local dev needs docker-compose. These belong in one place, not three.
 
-## Contents
+## Approach
 
-```
-k8s/
-├── skaffold.yaml             # Day-1 developer entry point — `skaffold dev`
-├── docker-compose.yaml       # Laptop-mode equivalent for non-k8s dev
-├── chart/                    # Helm chart — the production surface
-│   ├── Chart.yaml
-│   ├── values.yaml           # User-tunable knobs
-│   └── templates/            # Spark Connect, catalog, storage, ingress
-├── images/
-│   └── spark-connect/        # Dockerfile for the canonical image
-├── manifests/                # Non-Helm fallback (raw YAML)
-├── dorm-local.toml           # Reference config for dorm.Local()
-└── examples/                 # Overlays: aws.values.yaml, gcp.values.yaml, local.values.yaml
-```
+One pre-baked container image with every JAR already resolved and dropped into `$SPARK_HOME/jars/` at build time — first boot becomes fast. One Helm chart wraps the canonical production shape. One docker-compose carries the laptop-mode stack (Spark Connect + SeaweedFS + default catalog conf) so `make docker-up` in any sibling repo just works.
 
-## Status
+## Implementation
 
-v0 scaffold. Values files and templates are stubs that describe the
-target shape; real chart bodies land in a follow-up commit.
+Target layout (v0 scaffold today — see [#8](https://github.com/datalake-go/lake-k8s/issues/8) for the full roadmap):
 
-## Quickstart (docker-compose — no k8s required)
+- `images/spark-connect/` — Dockerfile + baked-in JAR set, published to `ghcr.io/datalake-go/lake-k8s/spark-connect:<version>`.
+- `charts/spark-connect/` — Helm chart exposing catalog conf, S3 backend auth, resource limits, the Prometheus servlet scrape target.
+- `skaffold.yaml` — inner-loop dev against kind / minikube / k3d.
+- `docker-compose.yaml` — laptop mode: Spark Connect on `:15002`, SeaweedFS on `:8333`, Iceberg REST catalog on `:8181`.
 
 ```bash
-docker compose up -d
-# SeaweedFS (S3 API) on http://localhost:8333
-# Spark Connect on sc://localhost:15002
+# laptop
+docker compose up
+
+# production (once the chart lands)
+helm install lake-k8s datalake-go/spark-connect \
+  --set catalog.warehouse=s3://my-bucket/warehouse
 ```
 
-Then in your Go app:
+### Architecture
 
-```go
-db, _ := dorm.Open(
-    spark.Remote("sc://localhost:15002"),
-    iceberg.Format(iceberg.WithCatalog(iceberg.RESTCatalog("http://localhost:19120/api/v1"))),
-    backend.MustS3("s3://dorm-local/lake?endpoint=http://localhost:8333&path_style=true&access_key=dorm&secret_key=dorm"),
-)
+```
+Image build                        Deployment targets
+    │                                    │
+    ▼                                    ├── kind / minikube        (Skaffold dev loop)
+ghcr.io/datalake-go/lake-k8s/            ├── docker-compose up      (laptop mode)
+  spark-connect:<version>                └── helm install           (production)
+(Spark 4.0 + Iceberg + Delta                │
+ + Hadoop-AWS, JARs baked in)               ▼
+                                      Spark Connect endpoint
+                                      consumed by lake-orm / lake-goose /
+                                      lakehouse / any database/sql client
 ```
 
-## Quickstart (kind / minikube — the Day-1 developer path)
-
-```bash
-# Prerequisites: kind OR minikube, skaffold, kubectl, helm
-skaffold dev
-```
-
-`skaffold dev` builds the Spark Connect image, applies the Helm chart,
-watches for file changes, and hot-reloads. When it prints the service
-endpoints, pass them to `dorm.Open` (or use `dorm.Local()` which reads
-them from `dorm-local.toml`).
-
-## Quickstart (production)
-
-```bash
-helm install dorm ./chart -f examples/aws.values.yaml
-```
-
-The chart ships with production-validated Spark Connect tunings
-(inbound/outbound gRPC message limits, Arrow batch size, reattachable
-stream duration, serializer). See `chart/templates/spark-connect.yaml`
-for the annotated config.
-
-## The canonical image
-
-`images/spark-connect/Dockerfile` builds `ghcr.io/datalakego/spark-connect:<spark-version>`
-with:
-
-- Apache Spark 3.5.x
-- Iceberg 1.6.x runtime (`iceberg-spark-runtime-3.5_2.12`)
-- Delta 3.2.x runtime (`delta-spark_2.12`, `delta-storage`, `delta-kernel`)
-- Hadoop-AWS 3.3.4 + `aws-java-sdk-bundle`
-
-Version compatibility between these JARs is a minefield — getting any
-of it wrong produces `ClassNotFoundException` or `NoSuchMethodError`
-buried in Spark RPC errors. This image solves that problem once, here.
-
-## License
-
-Apache 2.0.
+Paired with:
+- [`spark-connect-go`](https://github.com/datalake-go/spark-connect-go) — the Go client that dials these endpoints
+- [`lakehouse`](https://github.com/datalake-go/lakehouse) — the composed runtime that uses the compose stack as its local default
