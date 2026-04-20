@@ -1,6 +1,6 @@
 # lake-k8s
 
-> Deployment artifacts for the datalake-go lakehouse: pre-baked Spark Connect image, Helm chart, Skaffold dev loop, docker-compose for laptop mode.
+> Deployment artifacts for the [datalake-go](https://github.com/datalake-go) lakehouse: pre-baked Spark Connect image, Helm chart, Skaffold dev loop, docker-compose for laptop mode. Vendorless, reproducible, you-run-it — everything a managed lakehouse hides behind a pricing page, in forms you can deploy yourself.
 
 The operational substrate. Sibling repos ([lakehouse](https://github.com/datalake-go/lakehouse), [lake-orm](https://github.com/datalake-go/lake-orm), [spark-connect-go](https://github.com/datalake-go/spark-connect-go)) all talk to a Spark Connect endpoint — this repo ships the cluster that endpoint lives on, in every form you need it: container, chart, compose, dev loop.
 
