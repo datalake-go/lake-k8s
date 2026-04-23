@@ -1,5 +1,5 @@
 apiVersion: v2
-name: dorm
+name: lakeorm
 description: >
   Deploy Spark Connect + Iceberg catalog + object storage for datalakego.
   Defaults fully self-contained (SeaweedFS + Nessie); override via values
@@ -9,7 +9,7 @@ version: 0.1.0
 appVersion: "0.1.0"
 keywords:
   - datalakego
-  - dorm
+  - lakeorm
   - spark
   - iceberg
   - delta

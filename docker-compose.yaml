@@ -1,9 +1,9 @@
 # Laptop-mode stack. Mirrors what the Helm chart deploys to k8s but as
 # a single docker-compose for developers who don't want to run a local
-# k8s cluster. Same port layout; dorm.Local() assumes these defaults.
+# k8s cluster. Same port layout; lakeorm.Local() assumes these defaults.
 #
 # Brings up:
-#   - SeaweedFS on :8333      (S3 API; creds dorm/dorm; bucket dorm-local)
+#   - SeaweedFS on :8333      (S3 API; creds lakeorm/lakeorm; bucket lakeorm-local)
 #   - Spark Connect on :15002 (Spark 3.5 + Iceberg + Delta + Hadoop-AWS)
 #
 # Iceberg uses the Hadoop catalog rooted at the SeaweedFS warehouse —
@@ -13,7 +13,7 @@
 #
 # Usage:
 #   docker compose up -d
-#   # then from Go: dorm.Open(spark.Remote("sc://localhost:15002"), ...)
+#   # then from Go: lakeorm.Open(spark.Remote("sc://localhost:15002"), ...)
 #   docker compose down -v
 
 services:
@@ -35,7 +35,7 @@ services:
   spark-connect:
     # Placeholder for the canonical image. When images/spark-connect
     # is built and pushed, pin here explicitly.
-    image: ${DORM_SPARK_IMAGE:-ghcr.io/datalakego/spark-connect:4.0.0}
+    image: ${LAKEORM_SPARK_IMAGE:-ghcr.io/datalakego/spark-connect:4.0.0}
     ports:
       - "15002:15002"
     # Spark Connect tunings are the same as the chart's

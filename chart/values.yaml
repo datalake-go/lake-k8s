@@ -147,8 +147,8 @@ sparkConnect:
     # catalog service required. Production overlays that need
     # multi-tenancy / git-like branching / cross-engine access swap to
     # a REST catalog (Polaris, Tabular) or Glue / Unity.
-    spark.sql.catalog.dorm: "org.apache.iceberg.spark.SparkCatalog"
-    spark.sql.catalog.dorm.type: "hadoop"
+    spark.sql.catalog.lakeorm: "org.apache.iceberg.spark.SparkCatalog"
+    spark.sql.catalog.lakeorm.type: "hadoop"
 
     # --- Metrics ----------------------------------------------------
     # Spark 3.0+ ships the PrometheusServlet sink as part of the
@@ -182,7 +182,7 @@ catalog:
   # branching (Polaris, Tabular). Glue / Unity for managed options.
   type: hadoop
   # For REST catalogs, the chart template renders
-  # spark.sql.catalog.dorm.catalog-impl + .uri from these values.
+  # spark.sql.catalog.lakeorm.catalog-impl + .uri from these values.
   uri: ""
 
 storage:
@@ -205,9 +205,9 @@ storage:
       # Dev-only credentials. Production overlays use IRSA / Workload
       # Identity — see examples/aws.values.yaml. These show up in
       # logs so we don't want real keys here anyway.
-      accessKey: dorm
-      secretKey: dorm
-    bucket: dorm-local
+      accessKey: lakeorm
+      secretKey: lakeorm
+    bucket: lakeorm-local
 
   s3:
     endpoint: ""

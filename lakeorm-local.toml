@@ -1,12 +1,12 @@
-# dorm-local.toml — authoritative reference for what dorm.Local() hardcodes.
+# lakeorm-local.toml — authoritative reference for what lakeorm.Local() hardcodes.
 #
-# dorm.Local() is a convenience wrapper around dorm.Open(...) with
-# these values baked in. Loadable via dorm.OpenFromConfig when you want
+# lakeorm.Local() is a convenience wrapper around lakeorm.Open(...) with
+# these values baked in. Loadable via lakeorm.OpenFromConfig when you want
 # to tweak local development via config instead of code.
 
 [project]
-name     = "dorm-local"
-catalog  = "dorm"
+name     = "lakeorm-local"
+catalog  = "lakeorm"
 database = "default"
 
 [driver]
@@ -18,11 +18,11 @@ type         = "iceberg"
 # Hadoop catalog — no separate catalog service. Metadata lives as
 # `metadata/` JSON files alongside the data under the warehouse prefix.
 catalog_type = "hadoop"
-catalog_name = "dorm"
+catalog_name = "lakeorm"
 
 [backend]
 type = "s3"
-uri  = "s3://dorm-local/lake?endpoint=http://localhost:8333&path_style=true&access_key=dorm&secret_key=dorm"
+uri  = "s3://lakeorm-local/lake?endpoint=http://localhost:8333&path_style=true&access_key=lakeorm&secret_key=lakeorm"
 
 [defaults]
 compression               = "zstd"

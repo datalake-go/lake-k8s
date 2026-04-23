@@ -1,11 +1,11 @@
 {
   "identities": [
     {
-      "name": "dorm",
+      "name": "lakeorm",
       "credentials": [
         {
-          "accessKey": "dorm",
-          "secretKey": "dorm"
+          "accessKey": "lakeorm",
+          "secretKey": "lakeorm"
         }
       ],
       "actions": ["Admin", "Read", "Write", "List", "Tagging"]
