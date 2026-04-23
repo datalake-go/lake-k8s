@@ -30,7 +30,7 @@ jobs:
       - name: helm template (local values overlay)
         # Rendering against the local overlay catches value-key typos
         # and missing templates that plain `helm lint` doesn't.
-        run: helm template dorm chart/ -f examples/local.values.yaml
+        run: helm template lakeorm chart/ -f examples/local.values.yaml
 
       - name: docker compose config
         # `config -q` validates YAML syntax + referenced files without

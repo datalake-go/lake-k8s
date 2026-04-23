@@ -1,7 +1,7 @@
 apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
-  name: dorm
+  name: lakeorm
 build:
   artifacts:
     - image: ghcr.io/datalakego/spark-connect
@@ -11,20 +11,20 @@ build:
 deploy:
   helm:
     releases:
-      - name: dorm
+      - name: lakeorm
         chartPath: chart
         valuesFiles:
           - examples/local.values.yaml
 portForward:
   - resourceType: service
-    resourceName: dorm-spark-connect
+    resourceName: lakeorm-spark-connect
     port: 15002
     localPort: 15002
   - resourceType: service
-    resourceName: dorm-nessie
+    resourceName: lakeorm-nessie
     port: 19120
     localPort: 19120
   - resourceType: service
-    resourceName: dorm-seaweedfs
+    resourceName: lakeorm-seaweedfs
     port: 8333
     localPort: 8333

@@ -1,5 +1,5 @@
 # Canonical Spark Connect image for datalakeorm. Published as
-# ghcr.io/caldempsey/dorm-spark-connect:<spark-version>.
+# ghcr.io/caldempsey/lakeorm-spark-connect:<spark-version>.
 #
 # Owns the Spark/Iceberg/Delta/Hadoop-AWS/AWS-SDK version matrix
 # centrally so every team adopting datalakeorm doesn't re-solve it.
@@ -28,7 +28,7 @@ ARG AWS_SDK_VERSION=1.12.781
 
 USER root
 
-WORKDIR /opt/spark/jars-dorm
+WORKDIR /opt/spark/jars-lakeorm
 
 RUN curl -fsSL -o iceberg-spark-runtime-4.0_2.13-${ICEBERG_VERSION}.jar \
       https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-4.0_2.13/${ICEBERG_VERSION}/iceberg-spark-runtime-4.0_2.13-${ICEBERG_VERSION}.jar && \

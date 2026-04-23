@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "dorm.fullname" . }}-spark-connect
+  name: {{ include "lakeorm.fullname" . }}-spark-connect
   labels:
-    {{- include "dorm.labels" . | nindent 4 }}
+    {{- include "lakeorm.labels" . | nindent 4 }}
     app.kubernetes.io/component: spark-connect
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "dorm.selectorLabels" . | nindent 6 }}
+      {{- include "lakeorm.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: spark-connect
   template:
     metadata:
       labels:
-        {{- include "dorm.selectorLabels" . | nindent 8 }}
+        {{- include "lakeorm.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: spark-connect
     spec:
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "dorm.serviceAccountName" . }}
+      serviceAccountName: {{ include "lakeorm.serviceAccountName" . }}
       {{- end }}
       containers:
         - name: spark-connect
@@ -41,9 +41,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "dorm.fullname" . }}-spark-connect
+  name: {{ include "lakeorm.fullname" . }}-spark-connect
   labels:
-    {{- include "dorm.labels" . | nindent 4 }}
+    {{- include "lakeorm.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.sparkConnect.service.type }}
   ports:
@@ -54,5 +54,5 @@ spec:
       port: {{ .Values.sparkConnect.service.uiPort | default 4040 }}
       targetPort: http-ui
   selector:
-    {{- include "dorm.selectorLabels" . | nindent 4 }}
+    {{- include "lakeorm.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: spark-connect
